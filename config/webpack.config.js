@@ -49,7 +49,8 @@ const babelRuntimeRegenerator = require.resolve('@babel/runtime/regenerator', {
 const shouldInlineRuntimeChunk = process.env.INLINE_RUNTIME_CHUNK !== 'false';
 
 const emitErrorsAsWarnings = process.env.ESLINT_NO_DEV_ERRORS === 'true';
-const disableESLintPlugin = process.env.DISABLE_ESLINT_PLUGIN === 'true';
+// const disableESLintPlugin = process.env.DISABLE_ESLINT_PLUGIN === 'true';
+const disableESLintPlugin = true;
 
 const imageInlineSizeLimit = parseInt(
   process.env.IMAGE_INLINE_SIZE_LIMIT || '10000'
@@ -310,15 +311,23 @@ module.exports = function (webpackEnv) {
         .map(ext => `.${ext}`)
         .filter(ext => useTypeScript || !ext.includes('ts')),
       alias: {
-        // Support React Native Web
-        // https://www.smashingmagazine.com/2016/08/a-glimpse-into-the-future-with-react-native-for-web/
-        'react-native': 'react-native-web',
-        // Allows for better profiling with ReactDevTools
-        ...(isEnvProductionProfile && {
-          'react-dom$': 'react-dom/profiling',
-          'scheduler/tracing': 'scheduler/tracing-profiling',
-        }),
-        ...(modules.webpackAliases || {}),
+        react: path.join(paths.appSrc, 'react/packages/react'),
+        'react-dom': path.join(paths.appSrc, 'react/packages/react-dom'),
+        shared: path.join(paths.appSrc, 'react/packages/shared'),
+        'react-reconciler': path.join(paths.appSrc, 'react/packages/react-reconciler'),
+        'react-dom-bindings/src/shared/ReactDOMFormActions': path.join(paths.appSrc, 'react/packages/react-dom-bindings/src/shared/ReactDOMFormActions'),
+        'react-dom-bindings/src/client/ReactDOMContainer': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/client/ReactDOMContainer'),
+        'react-dom-bindings/src/events/ReactDOMEventReplaying': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/events/ReactDOMEventReplaying'),
+        'react-dom-bindings/src/events/ReactDOMEventReplaying': path.join(paths.appSrc, 'react/packages/react-dom-bindings/src/events/ReactDOMEventReplaying'),
+        'react-dom-bindings/src/events/DOMPluginEventSystem': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/events/DOMPluginEventSystem'),
+        'react-dom-bindings/src/client/HTMLNodeType': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/client/HTMLNodeType'),
+        'react-dom-bindings/src/shared/crossOriginStrings': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/shared/crossOriginStrings'),
+        'react-dom-bindings/src/client/ReactDOMComponent': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/client/ReactDOMComponent'),
+        'react-dom-bindings/src/shared/sanitizeURL': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/shared/sanitizeURL'),
+        'react-dom-bindings/src/client/ReactDOMComponentTree': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/client/ReactDOMComponentTree'),
+        'scheduler': path.join(paths.appSrc,'react/packages/scheduler'),
+        'react-dom-bindings/src/client/ReactFiberConfigDOM': path.join(paths.appSrc,'react/packages/react-dom-bindings/src/client/ReactFiberConfigDOM'),
+        'react-client/src/ReactClientConsoleConfigBrowser': path.join(paths.appSrc,'react/packages/react-client/src/ReactClientConsoleConfigBrowser'),
       },
       plugins: [
         // Prevents users from importing files from outside of src/ (or node_modules/).

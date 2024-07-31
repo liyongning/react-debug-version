@@ -40,7 +40,8 @@ import {
 import {setSuppressWarning} from 'shared/consoleWithStackDev';
 import {disableLogs, reenableLogs} from 'shared/ConsolePatchingDev';
 
-declare const __REACT_DEVTOOLS_GLOBAL_HOOK__: Object | void;
+// declare const __REACT_DEVTOOLS_GLOBAL_HOOK__: Object | void;
+const __REACT_DEVTOOLS_GLOBAL_HOOK__ = {};
 
 let rendererID = null;
 let injectedHook = null;

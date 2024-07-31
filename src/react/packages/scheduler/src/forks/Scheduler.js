@@ -43,6 +43,8 @@ import {
   startLoggingProfilingEvents,
 } from '../SchedulerProfiling';
 
+export * from './SchedulerMock'
+
 export type Callback = boolean => ?Callback;
 
 export opaque type Task = {

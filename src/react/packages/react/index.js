@@ -26,6 +26,9 @@ export type ElementRef<C> = React$ElementRef<C>;
 export type Config<Props, DefaultProps> = React$Config<Props, DefaultProps>;
 export type ChildrenArray<+T> = $ReadOnlyArray<ChildrenArray<T>> | T;
 
+console.log('react debug version')
+console.log('https://github.com/liyongning/blog', '一个能让你升 P7 的仓库，框架源码原理分析（比如 Vue、React、微前端、组件库等）、业界最佳实践等')
+
 // Export all exports so that they're available in tests.
 // We can't use export * from in Flow for some reason.
 export {
