@@ -36,8 +36,8 @@ export const enableAsyncActions = true;
 // Need to remove didTimeout argument from Scheduler before landing
 export const disableSchedulerTimeoutInWorkLoop = false;
 
-// This will break some internal tests at Meta so we need to gate this until
-// those can be fixed.
+// This will break some internal tests at Meta so we need to gate this until those can be fixed.
+// 这将破坏 Meta 内部的一些测试，因此在这些问题得到解决之前，我们需要对此加以限制。 
 export const enableDeferRootSchedulingToMicrotask = true;
 
 // TODO: Land at Meta before removing.
@@ -94,6 +94,7 @@ export const enableFabricCompleteRootInCommitPhase = false;
 
 /**
  * Switches Fiber creation to a simple object instead of a constructor.
+ * 将 fiber 创建切换为一个简单对象而非构造函数。 
  */
 export const enableObjectFiber = false;
 

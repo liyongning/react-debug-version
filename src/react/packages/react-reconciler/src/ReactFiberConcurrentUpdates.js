@@ -39,9 +39,11 @@ type ConcurrentQueue = {
 };
 
 // If a render is in progress, and we receive an update from a concurrent event,
-// we wait until the current render is over (either finished or interrupted)
-// before adding it to the fiber/hook queue. Push to this array so we can
-// access the queue, fiber, update, et al later.
+// we wait until the current render is over (either finished or interrupted) before adding it to the fiber/hook queue. 
+// Push to this array so we can access the queue, fiber, update, et al later.
+// 如果渲染正在进行中，并且我们从并发事件接收到更新，
+// 我们会等到当前渲染结束（无论是完成还是中断），然后再将其添加到 fiber/钩子队列中。
+// 将其推送到此数组，以便我们稍后可以访问队列、fiber、更新对象等。 
 const concurrentQueues: Array<any> = [];
 let concurrentQueuesIndex = 0;
 
@@ -86,6 +88,13 @@ export function getConcurrentlyUpdatedLanes(): Lanes {
   return concurrentlyUpdatedLanes;
 }
 
+/**
+ * 将传递的参数放入全局的更新队列中，并更新全局优先级、fiber 节点的优先级、fiber.alternate 的优先级
+ * @param {*} fiber Fiber 节点
+ * @param {*} queue 更新队列
+ * @param {*} update 更新内容对象
+ * @param {*} lane 优先级
+ */
 function enqueueUpdate(
   fiber: Fiber,
   queue: ConcurrentQueue | null,
@@ -94,17 +103,21 @@ function enqueueUpdate(
 ) {
   // Don't update the `childLanes` on the return path yet. If we already in
   // the middle of rendering, wait until after it has completed.
+  // 将 RootFiber、rootFiber.updateQueue.shared、更新对象、优先级都放到全局队列中
   concurrentQueues[concurrentQueuesIndex++] = fiber;
   concurrentQueues[concurrentQueuesIndex++] = queue;
   concurrentQueues[concurrentQueuesIndex++] = update;
   concurrentQueues[concurrentQueuesIndex++] = lane;
 
+  // 更新全局的 lanes 信息
   concurrentlyUpdatedLanes = mergeLanes(concurrentlyUpdatedLanes, lane);
 
   // The fiber's `lane` field is used in some places to check if any work is
   // scheduled, to perform an eager bailout, so we need to update it immediately.
   // TODO: We should probably move this to the "shared" queue instead.
+  // 更新 fiber 节点上的 lanes
   fiber.lanes = mergeLanes(fiber.lanes, lane);
+  // fiber.alternate 指向的是另一棵 fiber 树
   const alternate = fiber.alternate;
   if (alternate !== null) {
     alternate.lanes = mergeLanes(alternate.lanes, lane);
@@ -149,6 +162,14 @@ export function enqueueConcurrentHookUpdateAndEagerlyBailout<S, A>(
   }
 }
 
+/**
+ * 将 Fiber 节点、更新队列、更新对象、优先级都放入全局队列，并更新 Fiber、Fiber.alternate 和 全局优先级信息，然后找到当前 Fiber 节点对应 FiberRoot 对象并返回
+ * @param {*} fiber RootFiber 节点
+ * @param {*} queue share queue
+ * @param {*} update 更新对象
+ * @param {*} lane 优先级
+ * @returns 
+ */
 export function enqueueConcurrentClassUpdate<State>(
   fiber: Fiber,
   queue: ClassQueue<State>,
@@ -157,7 +178,9 @@ export function enqueueConcurrentClassUpdate<State>(
 ): FiberRoot | null {
   const concurrentQueue: ConcurrentQueue = (queue: any);
   const concurrentUpdate: ConcurrentUpdate = (update: any);
+  // 将传递的参数放入全局的更新队列中，并更新全局优先级、fiber 节点的优先级、fiber.alternate 的优先级
   enqueueUpdate(fiber, concurrentQueue, concurrentUpdate, lane);
+  // 通过向上遍历 Fiber 对象，找到了给定 Fiber 对应的 FiberRoot，并在遍历过程中检查了 Fiber 是否在卸载状态下被更新，以防止潜在的错误
   return getRootForUpdatedFiber(fiber);
 }
 
@@ -244,12 +267,21 @@ function markUpdateLaneFromFiberToRoot(
   }
 }
 
+/**
+ * 通过向上遍历 Fiber 对象，找到了给定 Fiber 对应的 FiberRoot，并在遍历过程中检查了 Fiber 是否在卸载状态下被更新，以防止潜在的错误
+ * @param {*} sourceFiber Fiber 节点
+ * @returns 
+ */
 function getRootForUpdatedFiber(sourceFiber: Fiber): FiberRoot | null {
   // TODO: We will detect and infinite update loop and throw even if this fiber
   // has already unmounted. This isn't really necessary but it happens to be the
   // current behavior we've used for several release cycles. Consider not
   // performing this check if the updated fiber already unmounted, since it's
   // not possible for that to cause an infinite update loop.
+  /**
+   * 通过维护和检查嵌套更新计数，帮助开发者识别和避免无限更新循环，这通常是由于不正确地使用 setState 或 useEffect 导致的。
+   * 这样的保护机制有助于提高应用程序的稳定性和性能
+   */
   throwIfInfiniteUpdateLoopDetected();
 
   // When a setState happens, we must ensure the root is scheduled. Because
@@ -259,6 +291,7 @@ function getRootForUpdatedFiber(sourceFiber: Fiber): FiberRoot | null {
   // the `childLanes`, anyway, but now those two traversals happen at
   // different times.
   // TODO: Consider adding a `root` backpointer on the update queue.
+  // 检查更新是否发生在一个已卸载的状态下进行的
   detectUpdateOnUnmountedFiber(sourceFiber, sourceFiber);
   let node = sourceFiber;
   let parent = node.return;

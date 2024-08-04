@@ -348,6 +348,8 @@ export function reconcileChildren(
     // won't update its child set by applying minimal side-effects. Instead,
     // we will add them all to the child before it gets rendered. That means
     // we can optimize this reconciliation pass by not tracking side-effects.
+    // 如果这是一个尚未渲染的全新组件，我们不会通过应用最小副作用来更新其子组件集。相反，
+    // 我们会在其渲染之前将它们全部添加到子组件中。这意味着我们可以通过不跟踪副作用来优化此协调过程。 
     workInProgress.child = mountChildFibers(
       workInProgress,
       null,
@@ -358,9 +360,14 @@ export function reconcileChildren(
     // If the current child is the same as the work in progress, it means that
     // we haven't yet started any work on these children. Therefore, we use
     // the clone algorithm to create a copy of all the current children.
+    // 如果 current.child 与 workInProgress 相同，则意味着我们尚未对这些子节点开始任何工作。
+    // 因此，我们使用克隆算法来创建当前所有子节点的副本。
 
     // If we had any progressed work already, that is invalid at this point so
     // let's throw it out.
+    // 如果我们已经有任何进行中的工作，此时该工作无效，所以，让我们将其丢弃。 
+
+    // 为 workInProgress 创建第一个子 fiber 节点
     workInProgress.child = reconcileChildFibers(
       workInProgress,
       current.child,
@@ -1488,10 +1495,14 @@ function updateHostRoot(
     throw new Error('Should have a current fiber. This is a bug in React.');
   }
 
+  // 新的 props
   const nextProps = workInProgress.pendingProps;
+  // 老的 state
   const prevState = workInProgress.memoizedState;
   const prevChildren = prevState.element;
+  // 如果两棵树的 updateQueue 是同一个对象，则用 current.updateQueue 填充 workInProgress.updateQueue
   cloneUpdateQueue(current, workInProgress);
+  // 处理更新队列以及跳过优先级不足的更新，似乎其中还更新了状态??
   processUpdateQueue(workInProgress, nextProps, null, renderLanes);
 
   const nextState: RootState = workInProgress.memoizedState;
@@ -1514,10 +1525,14 @@ function updateHostRoot(
   // This would ideally go inside processUpdateQueue, but because it suspends,
   // it needs to happen after the `pushCacheProvider` call above to avoid a
   // context stack mismatch. A bit unfortunate.
+  // 理想情况下，这应该放在 processUpdateQueue 内部，但由于它会挂起，
+  // 它需要在上面的 `pushCacheProvider` 调用之后发生，以避免上下文堆栈不匹配。有点不幸。 
   suspendIfUpdateReadFromEntangledAsyncAction();
 
-  // Caution: React DevTools currently depends on this property
-  // being called "element".
+  // Caution: React DevTools currently depends on this property being called "element".
+  // 警告：React 开发工具目前依赖于这个被称为“element”的属性。 
+  debugger
+  // div 的 VDOM，比如 { type: 'div', props: children: 'test', '$$typeof': Symbol(react.transitional.element) }
   const nextChildren = nextState.element;
   if (supportsHydration && prevState.isDehydrated) {
     // This is a hydration root whose shell has not yet hydrated. We should
@@ -1588,6 +1603,7 @@ function updateHostRoot(
   } else {
     // Root is not dehydrated. Either this is a client-only root, or it
     // already hydrated.
+    // root 没有 dehydrat。要么这是仅客户端的 root，要么它已经 hydrate。 
     resetHydrationState();
     if (nextChildren === prevChildren) {
       return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
@@ -1635,10 +1651,13 @@ function updateHostComponent(
     // case. We won't handle it as a reified child. We will instead handle
     // this in the host environment that also has access to this prop. That
     // avoids allocating another HostText fiber and traversing it.
+    // 我们对 host node 的直接文本子节点进行特殊处理。这是常见情况。我们不会将其视为具体化的子节点。
+    // 相反，我们将在宿主环境中处理此问题，该环境也可以访问此属性。这样可以避免分配另一个 HostText fiber 并对其进行遍历。 
     nextChildren = null;
   } else if (prevProps !== null && shouldSetTextContent(type, prevProps)) {
     // If we're switching from a direct text child to a normal child, or to
     // empty, we need to schedule the text content to be reset.
+    // 如果我们从直接的文本子节点切换到普通子节点，或者切换到空，我们需要安排重置文本内容。 
     workInProgress.flags |= ContentReset;
   }
 
@@ -1648,9 +1667,11 @@ function updateHostComponent(
       // This fiber has been upgraded to a stateful component. The only way
       // happens currently is for form actions. We use hooks to track the
       // pending and error state of the form.
+      // 此 fiber 已升级为有状态组件。当前唯一的方式发生于表单操作。我们使用钩子来跟踪表单的挂起和错误状态。
       //
       // Once a fiber is upgraded to be stateful, it remains stateful for the
       // rest of its lifetime.
+      // 一旦 fiber 升级为有状态，在其剩余的生命周期内它将保持有状态。 
       const newState = renderTransitionAwareHostComponentWithHooks(
         current,
         workInProgress,
@@ -1659,16 +1680,21 @@ function updateHostComponent(
 
       // If the transition state changed, propagate the change to all the
       // descendents. We use Context as an implementation detail for this.
+      // 如果过渡状态发生变化，将此变化传播给所有后代。我们将上下文用作此操作的实现细节。
       //
       // This is intentionally set here instead of pushHostContext because
       // pushHostContext gets called before we process the state hook, to avoid
       // a state mismatch in the event that something suspends.
+      // 这是有意在此处设置而不是调用 pushHostContext，因为在处理状态钩子之前会调用 pushHostContext，以避免在某些情况暂停时出现状态不匹配。
       //
       // NOTE: This assumes that there cannot be nested transition providers,
       // because the only renderer that implements this feature is React DOM,
       // and forms cannot be nested. If we did support nested providers, then
       // we would need to push a context value even for host fibers that
       // haven't been upgraded yet.
+      // 注意：这假定不能有嵌套的过渡提供程序，因为实现此功能的唯一渲染器是 React DOM，并且表单不能嵌套。
+      // 如果我们确实支持嵌套提供程序，那么即使对于尚未升级的主机纤维，我们也需要推送上下文值。 
+
       if (isPrimaryRenderer) {
         HostTransitionContext._currentValue = newState;
       } else {
@@ -3883,21 +3909,29 @@ function beginWork(
   }
 
   if (current !== null) {
+    // 初始挂载
+
+    // 上次更新后的 props
     const oldProps = current.memoizedProps;
+    // 本次更新的 props
     const newProps = workInProgress.pendingProps;
 
     if (
       oldProps !== newProps ||
       hasLegacyContextChanged() ||
       // Force a re-render if the implementation changed due to hot reload:
+      // 如果由于热重载导致实现发生更改，则强制重新渲染: 
       (__DEV__ ? workInProgress.type !== current.type : false)
     ) {
       // If props or context changed, mark the fiber as having performed work.
       // This may be unset if the props are determined to be equal later (memo).
+      // 如果 props 或上下文发生变化，则将 fiber 标记为已执行的任务。
+      // 这可能会在稍后确定 props 相等时取消设置（memo）。 
       didReceiveUpdate = true;
     } else {
       // Neither props nor legacy context changes. Check if there's a pending
       // update or context change.
+      // 既没有属性变化也没有旧的上下文变化。检查是否有未决的更新或上下文变化。 
       const hasScheduledUpdateOrContext = checkScheduledUpdateOrContext(
         current,
         renderLanes,
@@ -3906,9 +3940,12 @@ function beginWork(
         !hasScheduledUpdateOrContext &&
         // If this is the second pass of an error or suspense boundary, there
         // may not be work scheduled on `current`, so we check for this flag.
+        // 如果这是错误或 suspense 边界的第二次传递，
+        // `current` 上可能没有安排工作，所以我们检查这个标志。 
         (workInProgress.flags & DidCapture) === NoFlags
       ) {
         // No pending updates or context. Bail out now.
+        // 没有未决的更新或上下文。现在退出。 
         didReceiveUpdate = false;
         return attemptEarlyBailoutIfNoScheduledUpdate(
           current,
@@ -3918,6 +3955,7 @@ function beginWork(
       }
       if ((current.flags & ForceUpdateForLegacySuspense) !== NoFlags) {
         // This is a special case that only exists for legacy mode.
+        // 这是仅存在于遗留模式的特殊情况。 
         // See https://github.com/facebook/react/pull/19216.
         didReceiveUpdate = true;
       } else {
@@ -3925,10 +3963,13 @@ function beginWork(
         // nor legacy context. Set this to false. If an update queue or context
         // consumer produces a changed value, it will set this to true. Otherwise,
         // the component will assume the children have not changed and bail out.
+        // 在该 fiber 上已安排更新，但没有新的属性也没有旧的上下文。将其设置为 false。
+        // 如果更新队列或上下文消费者产生了更改的值，它将把这个设置为 true。否则，组件将假定子组件没有更改并退出。 
         didReceiveUpdate = false;
       }
     }
   } else {
+    // 后续更新
     didReceiveUpdate = false;
 
     if (getIsHydrating() && isForkedChild(workInProgress)) {
@@ -3952,8 +3993,12 @@ function beginWork(
   // the update queue. However, there's an exception: SimpleMemoComponent
   // sometimes bails out later in the begin phase. This indicates that we should
   // move this assignment out of the common path and into each branch.
+  // 在进入开始阶段之前，清除挂起的更新优先级。
+  // 待办事项: 这假定我们即将评估组件并处理更新队列。然而，存在一个例外：SimpleMemoComponent
+  // 有时在开始阶段的后期退出。这表明我们应该将此赋值移出公共路径并放入每个分支。 
   workInProgress.lanes = NoLanes;
 
+  debugger
   switch (workInProgress.tag) {
     case LazyComponent: {
       const elementType = workInProgress.elementType;
@@ -3997,6 +4042,7 @@ function beginWork(
       );
     }
     case HostRoot:
+      // 得到 workInProgress.child
       return updateHostRoot(current, workInProgress, renderLanes);
     case HostHoistable:
       if (supportsResources) {

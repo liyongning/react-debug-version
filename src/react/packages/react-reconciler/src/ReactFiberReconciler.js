@@ -224,6 +224,9 @@ function findHostInstanceWithWarning(
   return findHostInstance(component);
 }
 
+/**
+ * 创建 FiberRoot（应用根节点），并设置 fiberRoot.current 设置为 rootRiber，作为屏幕上当前渲染的节点，但 rootFiber 目前还是一个空的 fiber 节点
+ */
 export function createContainer(
   containerInfo: Container,
   tag: RootTag,
@@ -332,14 +335,25 @@ export function createHydrationContainer(
   return root;
 }
 
+/**
+ * 确定 FiberRoot 的更新优先级，并处理其协调更新
+ * @param {*} element VDOM
+ * @param {*} container FiberRoot
+ * @param {*} parentComponent 
+ * @param {*} callback 
+ * @returns 
+ */
 export function updateContainer(
   element: ReactNodeList,
   container: OpaqueRoot,
   parentComponent: ?React$Component<any, any>,
   callback: ?Function,
 ): Lane {
+  // rootFiber 节点
   const current = container.current;
+  // 确定 rootFiber 更新的优先级通道
   const lane = requestUpdateLane(current);
+  // 处理 FiberRoot 的协调更新 ??
   updateContainerImpl(
     current,
     lane,
@@ -348,6 +362,7 @@ export function updateContainer(
     parentComponent,
     callback,
   );
+  // 返回优先级
   return lane;
 }
 
@@ -372,6 +387,15 @@ export function updateContainerSync(
   return SyncLane;
 }
 
+/**
+ * 创建更新对象，并将 Fiber 节点、更新队列、更新对象放入队列中，并更新相关优先级，最后处理 FiberRoot 的协调更新？
+ * @param {*} rootFiber RootFiber
+ * @param {*} lane 更新优先级
+ * @param {*} element VDOM
+ * @param {*} container FiberRoot
+ * @param {*} parentComponent 
+ * @param {*} callback 
+ */
 function updateContainerImpl(
   rootFiber: Fiber,
   lane: Lane,
@@ -412,6 +436,7 @@ function updateContainerImpl(
     }
   }
 
+  // 根据优先级创建一个更新对象
   const update = createUpdate(lane);
   // Caution: React DevTools currently depends on this property
   // being called "element".
@@ -431,9 +456,12 @@ function updateContainerImpl(
     update.callback = callback;
   }
 
+  // 将 RootFiber、更新队列、更新对象、优先级都放入全局队列，并更新 RootFiber、RootFiber.alternate 和 全局优先级信息，然后找到 RootFiber 对应 FiberRoot 对象并返回
   const root = enqueueUpdate(rootFiber, update, lane);
   if (root !== null) {
+    // 即将进入 fiberRoot 的 schedule 阶段
     scheduleUpdateOnFiber(root, rootFiber, lane);
+    // 确保 FiberRoot 的更新队列能够正确的反应当前的工作状态 ？？特别是处理 transition 的 lane
     entangleTransitions(root, rootFiber, lane);
   }
 }

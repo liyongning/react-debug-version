@@ -411,6 +411,7 @@ export function createInstance(
     hostContextProd = (hostContext: any);
   }
 
+  // document 节点
   const ownerDocument = getOwnerDocumentFromRootContainer(
     rootContainerInstance,
   );
@@ -515,8 +516,11 @@ export function createInstance(
         }
       }
   }
+  // 将 domElement 对应的 fiber 存储到 dom 上
   precacheFiberNode(internalInstanceHandle, domElement);
+  // 将 props 也存储到 dom 上
   updateFiberProps(domElement, props);
+  // 返回当前 fiber 对应的 dom 节点
   return domElement;
 }
 
@@ -1716,6 +1720,7 @@ export function resolveSingletonInstance(
       validateDOMNesting(type, hostContextDev.ancestorInfo);
     }
   }
+  // document 节点
   const ownerDocument = getOwnerDocumentFromRootContainer(
     rootContainerInstance,
   );

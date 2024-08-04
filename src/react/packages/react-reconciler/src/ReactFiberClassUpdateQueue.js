@@ -177,11 +177,15 @@ if (__DEV__) {
 
 export function initializeUpdateQueue<State>(fiber: Fiber): void {
   const queue: UpdateQueue<State> = {
+    // 上次渲染后的 state
     baseState: fiber.memoizedState,
+    // 上一次渲染由于优先级不足而被跳过的 update 对象
     firstBaseUpdate: null,
     lastBaseUpdate: null,
     shared: {
+      // 本次渲染的 update 对象，是一个循环链表，pending 指向最新的 update 对象，pending.next 指向最老的 update 对象
       pending: null,
+      // 本次渲染的优先级集合
       lanes: NoLanes,
       hiddenCallbacks: null,
     },
@@ -222,12 +226,21 @@ export function createUpdate(lane: Lane): Update<mixed> {
   return update;
 }
 
+/**
+ * 将 RootFiber、更新队列、更新对象、优先级都放入全局队列，并更新 RootFiber、RootFiber.alternate 和 全局优先级信息，然后找到 RootFiber 对应 FiberRoot 对象并返回
+ * @param {*} fiber RootFiber
+ * @param {*} update 更新对象
+ * @param {*} lane 更新优先级
+ * @returns 
+ */
 export function enqueueUpdate<State>(
   fiber: Fiber,
   update: Update<State>,
   lane: Lane,
 ): FiberRoot | null {
+  // 更新队列
   const updateQueue = fiber.updateQueue;
+  // 只有在 fiber 节点被卸载时才会出现更新队列为 null 的情况
   if (updateQueue === null) {
     // Only occurs if the fiber has been unmounted.
     return null;
@@ -271,6 +284,7 @@ export function enqueueUpdate<State>(
     // currently renderings (a pattern that is accompanied by a warning).
     return unsafe_markUpdateLaneFromFiberToRoot(fiber, lane);
   } else {
+    // 将 Fiber 节点、更新队列、更新对象、优先级都放入全局队列，并更新 Fiber、Fiber.alternate 和 全局优先级信息，然后找到当前 Fiber 节点对应 FiberRoot 对象并返回
     return enqueueConcurrentClassUpdate(fiber, sharedQueue, update, lane);
   }
 }
@@ -491,6 +505,15 @@ export function suspendIfUpdateReadFromEntangledAsyncAction() {
   }
 }
 
+/**
+ * 处理更新队列，拼接 shared.pending 环状链表 和 firstBaseUpdate
+ * 处理更新优先级问题，跳过优先级不足的更新
+ * @todo 下面还有一些处理逻辑，暂时还没看
+ * @param {*} workInProgress 
+ * @param {*} props 
+ * @param {*} instance 
+ * @param {*} renderLanes 
+ */
 export function processUpdateQueue<State>(
   workInProgress: Fiber,
   props: any,
@@ -500,6 +523,7 @@ export function processUpdateQueue<State>(
   didReadFromEntangledAsyncAction = false;
 
   // This is always non-null on a ClassComponent or HostRoot
+  // 这在 ClassComponent 或 HostRoot 上始终不为空 
   const queue: UpdateQueue<State> = (workInProgress.updateQueue: any);
 
   hasForceUpdate = false;
@@ -511,14 +535,20 @@ export function processUpdateQueue<State>(
   let firstBaseUpdate = queue.firstBaseUpdate;
   let lastBaseUpdate = queue.lastBaseUpdate;
 
+  // 将 shared.pending 的环状链表打开，拼接到 firstBaseUpdate 上
+
   // Check if there are pending updates. If so, transfer them to the base queue.
+  // 检查是否有未处理的更新。如果有，将它们转移到基础队列。 
   let pendingQueue = queue.shared.pending;
   if (pendingQueue !== null) {
     queue.shared.pending = null;
 
     // The pending queue is circular. Disconnect the pointer between first
     // and last so that it's non-circular.
+    // pendingQueue 是一个环状链表。断开第一个和最后一个之间的指针，使其非循环。 
+    // 最新的更新
     const lastPendingUpdate = pendingQueue;
+    // 最老的更新
     const firstPendingUpdate = lastPendingUpdate.next;
     lastPendingUpdate.next = null;
     // Append pending updates to base queue
@@ -534,6 +564,11 @@ export function processUpdateQueue<State>(
     // queue is a singly-linked list with no cycles, we can append to both
     // lists and take advantage of structural sharing.
     // TODO: Pass `current` as argument
+    // 如果存在当前队列，并且它与基础队列不同，那么
+    // 我们也需要将更新转移到该队列。因为基础
+    // 队列为无环的单链表，我们可以同时向两个
+    // 列表添加，并利用结构共享。
+    // 待办事项: 将 `current` 作为参数传递 
     const current = workInProgress.alternate;
     if (current !== null) {
       // This is always non-null on a ClassComponent or HostRoot
@@ -551,6 +586,7 @@ export function processUpdateQueue<State>(
   }
 
   // These values may change as we process the queue.
+  // 这些值可能会随着我们处理队列而改变。 
   if (firstBaseUpdate !== null) {
     // Iterate through the list of updates to compute the result.
     let newState = queue.baseState;
@@ -567,12 +603,15 @@ export function processUpdateQueue<State>(
       // An extra OffscreenLane bit is added to updates that were made to
       // a hidden tree, so that we can distinguish them from updates that were
       // already there when the tree was hidden.
+      // 对于在隐藏树中进行的更新，添加了一个额外的 OffscreenLane 位，以便我们将其与树隐藏时已经存在的更新区分开来。 
       const updateLane = removeLanes(update.lane, OffscreenLane);
       const isHiddenUpdate = updateLane !== update.lane;
 
       // Check if this update was made while the tree was hidden. If so, then
       // it's not a "base" update and we should disregard the extra base lanes
       // that were added to renderLanes when we entered the Offscreen tree.
+      // 检查此更新是否在树隐藏时进行。如果是这样，那么
+      // 它不是“基础”更新，并且我们应该忽略在进入离屏树时添加到 renderLanes 的额外基础通道 
       const shouldSkipUpdate = isHiddenUpdate
         ? !isSubsetOfLanes(getWorkInProgressRootRenderLanes(), updateLane)
         : !isSubsetOfLanes(renderLanes, updateLane);
@@ -581,6 +620,7 @@ export function processUpdateQueue<State>(
         // Priority is insufficient. Skip this update. If this is the first
         // skipped update, the previous update/state is the new base
         // update/state.
+        // 优先级不足。跳过此更新。如果这是首次跳过的更新，则之前的更新/状态为新的基础更新/状态。 
         const clone: Update<State> = {
           lane: updateLane,
 
@@ -600,10 +640,13 @@ export function processUpdateQueue<State>(
         newLanes = mergeLanes(newLanes, updateLane);
       } else {
         // This update does have sufficient priority.
+        // 此更新确实具有足够的优先级。
 
         // Check if this update is part of a pending async action. If so,
         // we'll need to suspend until the action has finished, so that it's
         // batched together with future updates in the same action.
+        // 检查此更新是否是未完成的异步操作的一部分。如果是，
+        // 我们需要暂停，直到操作完成，以便与同一操作中的未来更新一起批处理。 
         if (updateLane !== NoLane && updateLane === peekEntangledActionLane()) {
           didReadFromEntangledAsyncAction = true;
         }
@@ -613,6 +656,8 @@ export function processUpdateQueue<State>(
             // This update is going to be committed so we never want uncommit
             // it. Using NoLane works because 0 is a subset of all bitmasks, so
             // this will never be skipped by the check above.
+            // 此次更新将被提交，因此我们绝不想撤销提交它。使用 NoLane 可行，因为 0 是所有位掩码的子集，所以
+            // 上述检查绝不会跳过此操作。 
             lane: NoLane,
 
             tag: update.tag,
@@ -620,6 +665,7 @@ export function processUpdateQueue<State>(
 
             // When this update is rebased, we should not fire its
             // callback again.
+            // 当此更新被重新基准时，我们不应再次触发其回调。 
             callback: null,
 
             next: null,

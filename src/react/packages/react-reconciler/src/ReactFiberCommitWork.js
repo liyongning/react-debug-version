@@ -375,6 +375,7 @@ export function commitBeforeMutationEffects(
   commitBeforeMutationEffects_begin();
 
   // We no longer need to track the active instance fiber
+  // 我们不再需要跟踪活动实例 fiber 
   const shouldFire = shouldFireAfterActiveInstanceBlur;
   shouldFireAfterActiveInstanceBlur = false;
   focusedInstanceHandle = null;
@@ -2020,6 +2021,7 @@ function commitDeletionEffects(
     hostParentIsContainer = false;
   } else {
     // Detach refs and call componentWillUnmount() on the whole subtree.
+    // 分离引用并在整个子树中调用 componentWillUnmount() 。 
     commitDeletionEffectsOnFiber(root, returnFiber, deletedFiber);
   }
 
@@ -2542,6 +2544,7 @@ function recursivelyTraverseMutationEffects(
 ) {
   // Deletions effects can be scheduled on any fiber type. They need to happen
   // before the children effects hae fired.
+  // 删除效果可以安排在任何 fiber 类型上。它们需要在子效果触发之前发生 
   const deletions = parentFiber.deletions;
   if (deletions !== null) {
     for (let i = 0; i < deletions.length; i++) {
@@ -2580,12 +2583,16 @@ function commitMutationEffectsOnFiber(
   root: FiberRoot,
   lanes: Lanes,
 ) {
+  debugger
   const current = finishedWork.alternate;
   const flags = finishedWork.flags;
 
   // The effect flag should be checked *after* we refine the type of fiber,
   // because the fiber tag is more specific. An exception is any flag related
   // to reconciliation, because those can be set on all fiber types.
+  // 在我们细化 fiber 类型之后，应该检查效果标志，
+  // 因为 fiber 标签更具特异性。一个例外是任何与协调相关的标志，
+  // 因为这些可以设置在所有 fiber 类型上。 
   switch (finishedWork.tag) {
     case FunctionComponent:
     case ForwardRef:

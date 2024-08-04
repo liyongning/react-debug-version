@@ -140,6 +140,7 @@ function FiberRootNode(
   }
 }
 
+// 创建 FiberRoot（应用根节点），并设置 fiberRoot.current 设置为 rootRiber，作为屏幕上当前渲染的节点，但 rootFiber 目前还是一个空的 fiber 节点
 export function createFiberRoot(
   containerInfo: Container,
   tag: RootTag,
@@ -171,6 +172,7 @@ export function createFiberRoot(
   formState: ReactFormState<any, any> | null,
 ): FiberRoot {
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  // 创建一个 fiberRoot 对象，这个整个 React 应用的根节点
   const root: FiberRoot = (new FiberRootNode(
     containerInfo,
     tag,
@@ -191,6 +193,7 @@ export function createFiberRoot(
 
   // Cyclic construction. This cheats the type system right now because
   // stateNode is any.
+  // 创建 RootFiber，并作为 fiberRoot.current。fiberRoot.current 表示当前屏幕上已渲染的 fiber 节点
   const uninitializedFiber = createHostRootFiber(tag, isStrictMode);
   root.current = uninitializedFiber;
   uninitializedFiber.stateNode = root;
@@ -223,6 +226,7 @@ export function createFiberRoot(
     uninitializedFiber.memoizedState = initialState;
   }
 
+  // 为 RootFiber 设置 updateQueue 对象
   initializeUpdateQueue(uninitializedFiber);
 
   return root;

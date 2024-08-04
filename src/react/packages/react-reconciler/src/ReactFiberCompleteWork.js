@@ -177,6 +177,7 @@ import {suspendCommit} from './ReactFiberThenable';
 /**
  * Tag the fiber with an update effect. This turns a Placement into
  * a PlacementAndUpdate.
+ * 用更新效果标记 fiber。这将一个放置操作转变为一个放置和更新操作。 
  */
 function markUpdate(workInProgress: Fiber) {
   workInProgress.flags |= Update;
@@ -219,6 +220,7 @@ function appendAllChildren(
   if (supportsMutation) {
     // We only have the top Fiber that was created but we need recurse down its
     // children to find all the terminal nodes.
+    // 我们只有创建的顶级 Fiber，但我们需要递归其子节点以找到所有终端节点。 
     let node = workInProgress.child;
     while (node !== null) {
       if (node.tag === HostComponent || node.tag === HostText) {
@@ -509,6 +511,13 @@ function updateHostComponent(
 // not created until the complete phase. For our existing use cases, host nodes
 // that suspend don't have children, so it doesn't matter. But that might not
 // always be true in the future.
+// 此函数必须在完整阶段的最后调用，因为
+// 它可能抛出以暂停，并且如果资源立即加载，工作
+// 循环将恢复渲染，就好像正在进行的工作已完成。所以它必须
+// 完全完成。
+// 待办事项：理想情况下，这应该移到开始阶段，但目前实例是
+// 直到完整阶段才创建。对于我们现有的用例，挂起的主机节点
+// 没有子节点，所以没关系。但未来可能并非总是如此。 
 function preloadInstanceAndSuspendIfNeeded(
   workInProgress: Fiber,
   type: Type,
@@ -522,6 +531,10 @@ function preloadInstanceAndSuspendIfNeeded(
     // return true, but if the renderer is reasonably confident that the
     // underlying resource won't be evicted, it can return false as a
     // performance optimization.
+    // 如果此前设置了此标志，我们可以将其移除。该标志
+    // 表示这组特定的属性是否可能需要暂停。最安全的做法是让 maySuspendCommit 始终
+    // 返回 true，但如果渲染器有充分的信心认为底层资源不会被逐出，它可以返回 false 作为
+    // 性能优化。 
     workInProgress.flags &= ~MaySuspendCommit;
     return;
   }
@@ -531,11 +544,16 @@ function preloadInstanceAndSuspendIfNeeded(
   // currently. We use this when revealing a prerendered tree, because
   // even though the tree has "mounted", its resources might not have
   // loaded yet.
+  // 用一个标志标记此 fiber。这会在所有可能挂起的 host 实例上设置，
+  // 即使它们当前不需要挂起。当揭示预渲染的树时，我们使用此标志，因为
+  // 即使树已“挂载”，其资源可能尚未加载。 
   workInProgress.flags |= MaySuspendCommit;
 
   // preload the instance if necessary. Even if this is an urgent render there
   // could be benefits to preloading early.
   // @TODO we should probably do the preload in begin work
+  // 如果必要，预先加载实例。即使这是紧急渲染，提前预加载也可能有益。
+  // @TODO 我们或许应该在开始工作时进行预加载 
   const isReady = preloadInstance(type, props);
   if (!isReady) {
     if (shouldRemainOnPreviousScreen()) {
@@ -911,10 +929,10 @@ function completeWork(
   renderLanes: Lanes,
 ): Fiber | null {
   const newProps = workInProgress.pendingProps;
-  // Note: This intentionally doesn't check if we're hydrating because comparing
-  // to the current tree provider fiber is just as fast and less error-prone.
-  // Ideally we would have a special version of the work loop only
-  // for hydration.
+  // Note: This intentionally doesn't check if we're hydrating because comparing to the current tree provider fiber is just as fast and less error-prone.
+  // Ideally we would have a special version of the work loop only for hydration.
+  // 注意：这有意不检查我们是否在 hydrating，因为与当前的树提供程序 fiber 进行比较同样快速且不易出错。
+  // 理想情况下，我们应该有一个专门用于 hydration 的工作循环版本。 
   popTreeContext(workInProgress);
   switch (workInProgress.tag) {
     case IncompleteFunctionComponent: {
@@ -1213,13 +1231,18 @@ function completeWork(
         // "stack" as the parent. Then append children as we go in beginWork
         // or completeWork depending on whether we want to add them top->down or
         // bottom->up. Top->down is faster in IE11.
+        // TODO: 将 createInstance 移至 beginWork 并将其保留在上下文
+        // “栈”作为父级。然后在 beginWork 中根据我们是要从上到下还是
+        // 从下到上添加子级来添加子级。在 IE11 中，从上到下更快。 
         const wasHydrated = popHydrationState(workInProgress);
         if (wasHydrated) {
           // TODO: Move this and createInstance step into the beginPhase
           // to consolidate.
           prepareToHydrateHostInstance(workInProgress, currentHostContext);
         } else {
+          debugger
           const rootContainerInstance = getRootHostContainer();
+          // 创建 DOM 节点并返回，另外会将 fiber 和 props 存储到 DOM 上
           const instance = createInstance(
             type,
             newProps,
@@ -1229,7 +1252,9 @@ function completeWork(
           );
           // TODO: For persistent renderers, we should pass children as part
           // of the initial instance creation
+          // TODO: 对于持久渲染器，我们应将子项作为初始实例创建的一部分传递 
           appendAllChildren(instance, workInProgress, false, false);
+          // fiber.stateNode 存储的是 fiber 对应的 DOM 节点
           workInProgress.stateNode = instance;
 
           // Certain renderers require commit-time effects for initial mount.
@@ -1253,6 +1278,10 @@ function completeWork(
       // throw to suspend, and if the resource immediately loads, the work loop
       // will resume rendering as if the work-in-progress completed. So it must
       // fully complete.
+      // 这必须在完整阶段的最后出现，因为它可能
+      // 抛出以暂停，并且如果资源立即加载，工作循环
+      // 将恢复渲染，就好像正在进行的工作已完成。所以它必须
+      // 完全完成。 
       preloadInstanceAndSuspendIfNeeded(
         workInProgress,
         workInProgress.type,

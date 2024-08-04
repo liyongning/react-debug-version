@@ -100,12 +100,18 @@ function ReactDOMRoot(internalRoot: FiberRoot) {
 // $FlowFixMe[prop-missing] found when upgrading Flow
 ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render =
   // $FlowFixMe[missing-this-annot]
+  /**
+   * @param {*} children render 方法中的 JSX 对应的 VDOM
+   */
   function (children: ReactNodeList): void {
+    // FiberRoot 对象
     const root = this._internalRoot;
+
     if (root === null) {
       throw new Error('Cannot update an unmounted root.');
     }
 
+    // 老版本 API 的参数检测，新版本的 render 方法只有一个参数
     if (__DEV__) {
       if (typeof arguments[1] === 'function') {
         console.error(
@@ -124,6 +130,7 @@ ReactDOMHydrationRoot.prototype.render = ReactDOMRoot.prototype.render =
         );
       }
     }
+    // 确定 FiberRoot 的更新优先级，并处理其协调更新
     updateContainer(children, root, null, null);
   };
 
@@ -158,14 +165,24 @@ ReactDOMHydrationRoot.prototype.unmount = ReactDOMRoot.prototype.unmount =
     }
   };
 
+/**
+ * 创建 reactDomRoot 对象 => { _internalRoot: rootFiber, render, unmount }
+ *   1. 检测 DOM 元素是否有效 =》 是否是有效的 DOM 元素、当前 DOM 元素没有被重复使用
+ *   2. 创建 React 应用的根节点 —— FiberRoot 对象，并创建应用的第一个 fiber 节点 —— RootFiber，并设置 fiberRoot.current = rootFiber。
+ *      fiberRoot.current 表示当前屏幕上显示的 fiber 树，当然现阶段的 rootFiber 还是一个空的 fiber 节点
+ *   3. React 事件委托机制
+ *   4. 实例化 reactDomRoot 对象，并设置 this._internalRoot = rootFiber，对象上还有 render 和 unmount 方法
+ */
 export function createRoot(
   container: Element | Document | DocumentFragment,
   options?: CreateRootOptions,
 ): RootType {
+  // 是否是有效的 DOM 元素
   if (!isValidContainer(container)) {
     throw new Error('Target container is not a DOM element.');
   }
 
+  // 开发环境的警告信息，不允许重复使用同一个根节点，即多次在同一个 DOM 元素上创建 React 根节点
   warnIfReactDOMContainerInDEV(container);
 
   const concurrentUpdatesByDefaultOverride = false;
@@ -176,6 +193,7 @@ export function createRoot(
   let onRecoverableError = defaultOnRecoverableError;
   let transitionCallbacks = null;
 
+  // 处理 createRoot 方法的第二个参数，支持四个配置项，主要和异常相关，我们一般不用，不需要关注
   if (options !== null && options !== undefined) {
     if (__DEV__) {
       if ((options: any).hydrate) {
@@ -218,6 +236,7 @@ export function createRoot(
     }
   }
 
+  // 创建 FiberRoot（应用根节点），并设置 fiberRoot.current 设置为 rootRiber，作为屏幕上当前渲染的节点，但 rootFiber 目前还是一个空的 fiber 节点
   const root = createContainer(
     container,
     ConcurrentRoot,
@@ -230,15 +249,18 @@ export function createRoot(
     onRecoverableError,
     transitionCallbacks,
   );
+  // 设置 root.current[key] = container，将当前容器节点标记为 React 的根 DOM 节点，和 warnIfReactDOMContainerInDEV 配套使用
   markContainerAsRoot(root.current, container);
 
   const rootContainerElement: Document | Element | DocumentFragment =
     container.nodeType === COMMENT_NODE
       ? (container.parentNode: any)
       : container;
+  // React 事件委托机制
   listenToAllSupportedEvents(rootContainerElement);
 
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
+  // 实例化 reactDomRoot 对象，并设置 this._internalRoot = rootFiber，对象上还有 render 和 unmount 方法
   return new ReactDOMRoot(root);
 }
 

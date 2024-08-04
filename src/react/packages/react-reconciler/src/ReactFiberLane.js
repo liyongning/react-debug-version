@@ -32,6 +32,8 @@ import {clz32} from './clz32';
 
 // Lane values below should be kept in sync with getLabelForLane(), used by react-devtools-timeline.
 // If those values are changed that package should be rebuilt and redeployed.
+// 下面的 lane 值应与 react-devtools-timeline 所使用的 getLabelForLane() 保持同步。
+// 如果更改了这些值，则应重新构建并重新部署该包。 
 
 export const TotalLanes = 31;
 
@@ -212,6 +214,7 @@ function getHighestPriorityLanes(lanes: Lanes | Lane): Lanes {
 
 export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
   // Early bailout if there's no pending work left.
+  // 如果没有剩余的未完成工作则提前退出。 
   const pendingLanes = root.pendingLanes;
   if (pendingLanes === NoLanes) {
     return NoLanes;
@@ -219,11 +222,15 @@ export function getNextLanes(root: FiberRoot, wipLanes: Lanes): Lanes {
 
   let nextLanes: Lanes = NoLanes;
 
+  // 挂起的任务
   const suspendedLanes = root.suspendedLanes;
+  // 挂起的任务已拿到结果了
   const pingedLanes = root.pingedLanes;
 
   // Do not work on any idle work until all the non-idle work has finished,
   // even if the work is suspended.
+  // 在所有非闲置工作完成之前，不要处理任何闲置工作，
+  // 即使工作已暂停。 
   const nonIdlePendingLanes = pendingLanes & NonIdleLanes;
   if (nonIdlePendingLanes !== NoLanes) {
     const nonIdleUnblockedLanes = nonIdlePendingLanes & ~suspendedLanes;
@@ -403,6 +410,7 @@ export function markStarvedLanesAsExpired(
   // TODO: This gets called every time we yield. We can optimize by storing
   // the earliest expiration time on the root. Then use that to quickly bail out
   // of this function.
+  // TODO: 每次我们生成时都会调用此函数。我们可以通过在 root 上存储最早的过期时间来进行优化。然后使用它快速退出此函数。 
 
   const pendingLanes = root.pendingLanes;
   const suspendedLanes = root.suspendedLanes;
@@ -413,10 +421,14 @@ export function markStarvedLanesAsExpired(
   // expiration time. If so, we'll assume the update is being starved and mark
   // it as expired to force it to finish.
   // TODO: We should be able to replace this with upgradePendingLanesToSync
+  // 遍历挂起的 lanes，并检查我们是否已达到它们的过期时间。如果是，我们将假定更新正在挨饿，并将其标记为过期以强制其完成。
+  // 待办事项: 我们应该能够用 upgradePendingLanesToSync 替换此操作
   //
   // We exclude retry lanes because those must always be time sliced, in order
   // to unwrap uncached promises.
   // TODO: Write a test for this
+  // 我们排除重试 lanes，因为这些 lanes 必须始终进行时间切片，以便展开未缓存的 promises。
+  // 待办事项: 为此编写一个测试 
   let lanes = enableRetryLaneExpiration
     ? pendingLanes
     : pendingLanes & ~RetryLanes;
@@ -429,15 +441,19 @@ export function markStarvedLanesAsExpired(
       // Found a pending lane with no expiration time. If it's not suspended, or
       // if it's pinged, assume it's CPU-bound. Compute a new expiration time
       // using the current time.
+      // 发现一个未设置过期时间的挂起 lane。如果它未被暂停，或者
+      // 如果它被发送了 Ping 包，假定它受 CPU 限制。使用当前时间计算一个新的过期时间 
       if (
         (lane & suspendedLanes) === NoLanes ||
         (lane & pingedLanes) !== NoLanes
       ) {
         // Assumes timestamps are monotonically increasing.
+        // 假设时间戳单调递增。 
         expirationTimes[index] = computeExpirationTime(lane, currentTime);
       }
     } else if (expirationTime <= currentTime) {
       // This lane expired
+      // 这个 lane 过期了
       root.expiredLanes |= lane;
     }
 
@@ -539,6 +555,8 @@ export function pickArbitraryLane(lanes: Lanes): Lane {
   // doesn't matter which bit is selected; you can pick any bit without
   // affecting the algorithms where its used. Here I'm using
   // getHighestPriorityLane because it requires the fewest operations.
+  // 此包装函数会被内联。它仅存在是为了表明选择哪一位并不重要；您可以选择任何一位，而不会影响其使用的算法。
+  // 在这里，我使用 getHighestPriorityLane 是因为它所需的操作最少。 
   return getHighestPriorityLane(lanes);
 }
 

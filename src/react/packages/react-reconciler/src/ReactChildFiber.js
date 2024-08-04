@@ -399,6 +399,10 @@ type ChildReconciler = (
 // to be able to optimize each path individually by branching early. This needs
 // a compiler or we can do it manually. Helpers that don't need this branching
 // live outside of this function.
+// 此包装函数之所以存在，是因为我期望在每个路径中克隆代码
+// 以便能够通过提前分支单独优化每个路径。这需要
+// 一个编译器，或者我们可以手动进行。不需要此分支的辅助函数
+// 位于此函数之外。 
 function createChildReconciler(
   shouldTrackSideEffects: boolean,
 ): ChildReconciler {
@@ -495,8 +499,8 @@ function createChildReconciler(
   }
 
   function placeSingleChild(newFiber: Fiber): Fiber {
-    // This is simpler for the single child case. We only need to do a
-    // placement for inserting new children.
+    // This is simpler for the single child case. We only need to do a placement for inserting new children.
+    // 对于单子节点的情况，这更简单。我们只需要进行插入新子节点的放置操作。
     if (shouldTrackSideEffects && newFiber.alternate === null) {
       newFiber.flags |= Placement | PlacementDEV;
     }
@@ -1721,8 +1725,10 @@ function createChildReconciler(
       validateFragmentProps(element, created, returnFiber);
       return created;
     } else {
+      // 创建元素的 fiber 节点
       const created = createFiberFromElement(element, returnFiber.mode, lanes);
       coerceRef(returnFiber, currentFirstChild, created, element);
+      // 指定父 fiber 节点
       created.return = returnFiber;
       if (__DEV__) {
         created._debugInfo = currentDebugInfo;
@@ -1767,9 +1773,10 @@ function createChildReconciler(
     return created;
   }
 
-  // This API will tag the children with the side-effect of the reconciliation
-  // itself. They will be added to the side-effect list as we pass through the
-  // children and the parent.
+  // This API will tag the children with the side-effect of the reconciliation itself.
+  // They will be added to the side-effect list as we pass through the children and the parent.
+  // 此 API 将以协调自身的副作用标记子节点。
+  // 当我们遍历子节点和父节点时，它们将被添加到副作用列表中。 
   function reconcileChildFibersImpl(
     returnFiber: Fiber,
     currentFirstChild: Fiber | null,
@@ -1777,17 +1784,22 @@ function createChildReconciler(
     lanes: Lanes,
   ): Fiber | null {
     // This function is only recursive for Usables/Lazy and not nested arrays.
-    // That's so that using a Lazy wrapper is unobservable to the Fragment
-    // convention.
+    // That's so that using a Lazy wrapper is unobservable to the Fragment convention.
     // If the top level item is an array, we treat it as a set of children,
-    // not as a fragment. Nested arrays on the other hand will be treated as
-    // fragment nodes. Recursion happens at the normal flow.
+    // not as a fragment. Nested arrays on the other hand will be treated as fragment nodes. Recursion happens at the normal flow.
+    // 此函数仅对 Usables/Lazy 是递归的，而不是嵌套数组。
+    // 这是为了使使用 Lazy 包装器对于 Fragment 约定不可察觉。
+    // 如果顶级项是一个数组，我们将其视为一组子项，
+    // 而不是一个片段。另一方面，嵌套数组将被视为片段节点。递归在正常流程中发生。
 
     // Handle top level unkeyed fragments as if they were arrays.
     // This leads to an ambiguity between <>{[...]}</> and <>...</>.
     // We treat the ambiguous cases above the same.
-    // We don't use recursion here because a fragment inside a fragment
-    // is no longer considered "top level" for these purposes.
+    // We don't use recursion here because a fragment inside a fragment is no longer considered "top level" for these purposes.
+    // 将顶级无键片段视为数组处理。
+    // 这导致 <>{[...]}</> 和 <>...</> 之间存在歧义。
+    // 对于上述歧义情况，我们以相同的方式处理。
+    // 我们在此处不使用递归，因为片段中的片段对于这些目的不再被视为“顶级”。 
     const isUnkeyedTopLevelFragment =
       typeof newChild === 'object' &&
       newChild !== null &&
@@ -1803,6 +1815,7 @@ function createChildReconciler(
       switch (newChild.$$typeof) {
         case REACT_ELEMENT_TYPE: {
           const prevDebugInfo = pushDebugInfo(newChild._debugInfo);
+          // 为 returnFiber 节点创建第一个子 fiber 节点
           const firstChild = placeSingleChild(
             reconcileSingleElement(
               returnFiber,
@@ -1951,6 +1964,7 @@ function createChildReconciler(
     }
 
     // Remaining cases are all treated as empty.
+    // 其余情况均视为空。 
     return deleteRemainingChildren(returnFiber, currentFirstChild);
   }
 
@@ -1965,7 +1979,10 @@ function createChildReconciler(
     try {
       // This indirection only exists so we can reset `thenableState` at the end.
       // It should get inlined by Closure.
+      // 这种间接性的存在仅仅是为了我们能够在最后重置“thenableState”。
+      // 它应该被 Closure 内联。 
       thenableIndexCounter = 0;
+      // 为 returnFiber 创建第一个子 fiber 节点
       const firstChildFiber = reconcileChildFibersImpl(
         returnFiber,
         currentFirstChild,

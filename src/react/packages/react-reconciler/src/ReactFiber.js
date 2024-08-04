@@ -230,6 +230,12 @@ function FiberNode(
 //    is faster.
 // 5) It should be easy to port this to a C struct and keep a C implementation
 //    compatible.
+// 这是一个构造函数，而不是 POJO 构造函数，仍然请确保我们做到以下几点：
+// 1) 任何人都不应在此添加任何实例方法。实例方法在优化时更难以预测，并且在静态编译器中几乎永远不会正确内联。
+// 2) 任何人都不应依赖 `instanceof Fiber` 进行类型测试。我们应该始终知道何时它是一个 Fiber。
+// 3) 我们可能想要尝试使用数字键，因为它们在非 JIT 环境中更容易优化。
+// 4) 如果更快，我们可以轻松地从构造函数转换为 createFiber 对象字面量。
+// 5) 应该很容易将其移植到 C 结构体，并保持 C 实现兼容。 
 function createFiberImplClass(
   tag: WorkTag,
   pendingProps: mixed,
@@ -333,6 +339,7 @@ export function isFunctionClassComponent(
 }
 
 // This is used to create an alternate fiber to do work on.
+// 这用于创建一个来进行工作。 
 export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
   let workInProgress = current.alternate;
   if (workInProgress === null) {
@@ -341,6 +348,9 @@ export function createWorkInProgress(current: Fiber, pendingProps: any): Fiber {
     // node that we're free to reuse. This is lazily created to avoid allocating
     // extra objects for things that are never updated. It also allow us to
     // reclaim the extra memory if needed.
+    // 我们使用双缓冲池技术，因为我们知道我们最多只需要树的两个版本。
+    // 我们对“其他”未使用的、我们可以自由重用的节点进行池化。
+    // 这是延迟创建的，以避免为从未更新的内容分配额外的对象。它还允许我们在需要时回收额外的内存。 
     workInProgress = createFiber(
       current.tag,
       pendingProps,
@@ -519,6 +529,7 @@ export function resetWorkInProgress(
   return workInProgress;
 }
 
+// 创建 RootFiber 节点
 export function createHostRootFiber(
   tag: RootTag,
   isStrictMode: boolean,
