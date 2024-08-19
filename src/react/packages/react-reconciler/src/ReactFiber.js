@@ -133,6 +133,9 @@ if (__DEV__) {
   }
 }
 
+/**
+ * 实例化一个 Fiber 节点 
+ */
 function FiberNode(
   this: $FlowFixMe,
   tag: WorkTag,
@@ -243,6 +246,7 @@ function createFiberImplClass(
   mode: TypeOfMode,
 ): Fiber {
   // $FlowFixMe[invalid-constructor]: the shapes are exact here but Flow doesn't like constructors
+  // 创建 根 Fiber 节点（HostRoot），mode 指定为并发模式（concurrent）
   return new FiberNode(tag, pendingProps, key, mode);
 }
 
@@ -315,6 +319,7 @@ function createFiberImplObject(
   return fiber;
 }
 
+// 创建 Fiber 节点的两种方式，区别不大，可以忽略
 const createFiber = enableObjectFiber
   ? createFiberImplObject
   : createFiberImplClass;
@@ -529,7 +534,7 @@ export function resetWorkInProgress(
   return workInProgress;
 }
 
-// 创建 RootFiber 节点
+// 创建根 Fiber 节点
 export function createHostRootFiber(
   tag: RootTag,
   isStrictMode: boolean,
@@ -551,6 +556,7 @@ export function createHostRootFiber(
     mode |= ProfileMode;
   }
 
+  // 调用 createFiberImplClass 创建 根 Fiber 节点
   return createFiber(HostRoot, null, null, mode);
 }
 

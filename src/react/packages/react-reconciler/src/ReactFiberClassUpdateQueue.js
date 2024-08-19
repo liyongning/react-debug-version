@@ -175,6 +175,7 @@ if (__DEV__) {
   };
 }
 
+// 给 fiber 节点设置 updateQueue
 export function initializeUpdateQueue<State>(fiber: Fiber): void {
   const queue: UpdateQueue<State> = {
     // 上次渲染后的 state
