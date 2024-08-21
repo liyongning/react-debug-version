@@ -87,7 +87,12 @@ export function createEventListenerWrapperWithPriority(
   domEventName: DOMEventName,
   eventSystemFlags: EventSystemFlags,
 ): Function {
+  // 获取 domEventName（事件）对应的优先级，即不同的事件的回调函数有不同的调度优先级
   const eventPriority = getEventPriority(domEventName);
+  // 根据优先级获取不同的事件监听函数，这些监听函数的逻辑是:
+  //     1. 在执行时先记录正在更新中的优先级，然后设置当前更新优先级
+  //     2. 调用 dispatchEvent 方法
+  //     3. 恢复之前的优先级
   let listenerWrapper;
   switch (eventPriority) {
     case DiscreteEventPriority:
@@ -182,6 +187,7 @@ export function dispatchEvent(
   }
   // We need to clear only if we didn't queue because
   // queueing is accumulative.
+  // 我们仅在未排队的情况下需要清除，因为排队是累积的。 
   clearIfContinuousEvent(domEventName, nativeEvent);
 
   if (
@@ -216,6 +222,7 @@ export function dispatchEvent(
 
   // This is not replayable so we'll invoke it but without a target,
   // in case the event system needs to trace it.
+  // 这不可重复播放，所以我们将调用它，但没有目标，以防事件系统需要追踪它。 
   dispatchEventForPluginEventSystem(
     domEventName,
     eventSystemFlags,
@@ -228,6 +235,7 @@ export function dispatchEvent(
 export function findInstanceBlockingEvent(
   nativeEvent: AnyNativeEvent,
 ): null | Container | SuspenseInstance {
+  // 从事件对象上获取触发事件的目标节点
   const nativeEventTarget = getEventTarget(nativeEvent);
   return findInstanceBlockingTarget(nativeEventTarget);
 }
@@ -236,6 +244,8 @@ export let return_targetInst: null | Fiber = null;
 
 // Returns a SuspenseInstance or Container if it's blocked.
 // The return_targetInst field above is conceptually part of the return value.
+// 如果它被阻塞，返回一个 SuspenseInstance 或 Container。
+// 上面的 return_targetInst 字段在概念上是返回值的一部分。 
 export function findInstanceBlockingTarget(
   targetNode: Node,
 ): null | Container | SuspenseInstance {
@@ -249,6 +259,7 @@ export function findInstanceBlockingTarget(
     const nearestMounted = getNearestMountedFiber(targetInst);
     if (nearestMounted === null) {
       // This tree has been unmounted already. Dispatch without a target.
+      // 这棵树已经被卸载。无目标地调度。 
       targetInst = null;
     } else {
       const tag = nearestMounted.tag;
@@ -259,6 +270,8 @@ export function findInstanceBlockingTarget(
           // don't want this event dispatched twice through the event system.
           // TODO: If this is the first discrete event in the queue. Schedule an increased
           // priority for this boundary.
+          // 将该事件排入队列以便稍后重放。中止调度，因为我们不希望此事件通过事件系统调度两次。
+          // 注意：如果这是队列中的第一个离散事件。为该边界安排更高的优先级。 
           return instance;
         }
         // This shouldn't happen, something went wrong but to avoid blocking
@@ -270,6 +283,7 @@ export function findInstanceBlockingTarget(
         if (isRootDehydrated(root)) {
           // If this happens during a replay something went wrong and it might block
           // the whole system.
+          // 如果在重放期间发生这种情况，则出现了错误，并且可能会阻塞整个系统。 
           return getContainerFromFiber(nearestMounted);
         }
         targetInst = null;
@@ -278,12 +292,15 @@ export function findInstanceBlockingTarget(
         // component's mount, ignore it for now (that is, treat it as if it was an
         // event on a non-React tree). We might also consider queueing events and
         // dispatching them after the mount.
+        // 如果在提交该组件的挂载之前我们收到一个事件（例如：img 的 onload），
+        // 目前忽略它（也就是说，将其视为在非 React 树上的事件）。我们也可能考虑对事件进行排队，并在挂载后分发它们。 
         targetInst = null;
       }
     }
   }
   return_targetInst = targetInst;
   // We're not blocked on anything.
+  // 没有被任何事情阻碍 
   return null;
 }
 

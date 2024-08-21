@@ -186,6 +186,7 @@ function extractEvents(
 }
 
 // List of events that need to be individually attached to media elements.
+// 需要单独附加到媒体元素的事件列表。 
 export const mediaEventTypes: Array<DOMEventName> = [
   'abort',
   'canplay',
@@ -216,6 +217,7 @@ export const mediaEventTypes: Array<DOMEventName> = [
 // We should not delegate these events to the container, but rather
 // set them on the actual target element itself. This is primarily
 // because these events do not consistently bubble in the DOM.
+// 我们不应将这些事件委托给容器，而应将它们设置在实际的目标元素本身上。这主要是因为这些事件在 DOM 中不一致地冒泡。 
 export const nonDelegatedEvents: Set<DOMEventName> = new Set([
   'beforetoggle',
   'cancel',
@@ -229,6 +231,8 @@ export const nonDelegatedEvents: Set<DOMEventName> = new Set([
   // into this Set. Note: the "error" event isn't an exclusive media event,
   // and can occur on other elements too. Rather than duplicate that event,
   // we just take it from the media events array.
+  // 为了减少字节数，我们将上述媒体事件数组插入到此集合中。注意：“错误”事件并非专属的媒体事件，
+  // 并且也可能在其他元素上发生。与其重复该事件，我们只需从媒体事件数组中获取它。 
   ...mediaEventTypes,
 ]);
 
@@ -356,6 +360,11 @@ export function listenToNonDelegatedEvent(
   }
 }
 
+/**
+ * @param { string } domEventName 事件名称
+ * @param { boolean } isCapturePhaseListener 是否在捕获阶段执行回调
+ * @param { Element } target 目标节点，分为 container 和 document 两种
+ */
 export function listenToNativeEvent(
   domEventName: DOMEventName,
   isCapturePhaseListener: boolean,
@@ -371,6 +380,7 @@ export function listenToNativeEvent(
     }
   }
 
+  // 当前事件如果支持捕获节点，则标识一下
   let eventSystemFlags = 0;
   if (isCapturePhaseListener) {
     eventSystemFlags |= IS_CAPTURE_PHASE;
@@ -412,19 +422,38 @@ export function listenToNativeEventForNonManagedEventTarget(
 
 const listeningMarker = '_reactListening' + Math.random().toString(36).slice(2);
 
+/**
+ * 为所有原生事件做事件委托处理，分为三种情况
+ *    1. 如果是 selectionchange 事件，在 document 对象上监听 selectionchange 事件，因为该事
+ * 件不支持冒泡，且只能在 document 上监听
+ *    2. 有些事件只支持在捕获阶段监听，则在 container 节点上为该事件添加捕获阶段的监听函数
+ *    3. 剩下的事件，既支持捕获也支持冒泡，则在 container 节点上分别设置捕获和冒泡阶段的监听函数
+ * 
+ * 核心就是调用 listenToNativeEvent(domEventName, isCapturePhaseListener, targetDom); 
+ *
+ * 最终就是执行 targetDom.addEventListener(domEventName, listenerFn, options)。
+ *    只不过这里的 listenerFn 是被特殊包装过的监听函数，比如其中有更新优先级的概念，即事件发生时，执行监听函数会设置更新优先级，不同事件有不同的优先级
+ *    另外不同情况的 options 也不一样，主要体现在 capture、passive 等
+ */
 export function listenToAllSupportedEvents(rootContainerElement: EventTarget) {
   if (!(rootContainerElement: any)[listeningMarker]) {
+    // 在 container DOM 上打标记，防止事件委托重复执行
     (rootContainerElement: any)[listeningMarker] = true;
     allNativeEvents.forEach(domEventName => {
       // We handle selectionchange separately because it
       // doesn't bubble and needs to be on the document.
+      // 处理非 selectionchange 事件，因为 selectionchange 不会冒泡并且只能在 Document 上监听和触发。 
       if (domEventName !== 'selectionchange') {
         if (!nonDelegatedEvents.has(domEventName)) {
+          // 非 noDelegatedEvents 中的事件，事件委托既支持冒泡，又支持捕获
           listenToNativeEvent(domEventName, false, rootContainerElement);
         }
+        // noDeletegatedEvents 中的事件只支持捕获阶段的事件委托
         listenToNativeEvent(domEventName, true, rootContainerElement);
       }
     });
+
+    // 单独处理 selectionchange 事件：在 document 对象上监听 selectionchange 事件
     const ownerDocument =
       (rootContainerElement: any).nodeType === DOCUMENT_NODE
         ? rootContainerElement
@@ -447,13 +476,17 @@ function addTrappedEventListener(
   isCapturePhaseListener: boolean,
   isDeferredListenerForLegacyFBSupport?: boolean,
 ) {
+  // 事件监听函数
   let listener = createEventListenerWrapperWithPriority(
     targetContainer,
     domEventName,
     eventSystemFlags,
   );
+  // 接下来就是调用 tagetContainer.addEventListener 来为事件注册监听函数了，只是不同情况的 addEventListener 的第三个参数不同
+
   // If passive option is not supported, then the event will be
   // active and not passive.
+  // 如果不支持被动选项，那么该事件将是主动的而非被动的。 
   let isPassiveListener: void | boolean = undefined;
   if (passiveBrowserEventsSupported) {
     // Browsers introduced an intervention, making these events
@@ -461,6 +494,9 @@ function addTrappedEventListener(
     // to document anymore, but changing this now would undo
     // the performance wins from the change. So we emulate
     // the existing behavior manually on the roots now.
+    // 浏览器引入了一项干预措施，使这些事件在文档中默认处于被动状态。
+    // React 不再将它们绑定到文档，但现在更改此操作会抵消更改带来的性能优势。
+    // 因此，我们现在在根节点上手动模拟现有行为。 
     // https://github.com/facebook/react/issues/19651
     if (
       domEventName === 'touchstart' ||
@@ -488,6 +524,10 @@ function addTrappedEventListener(
   // browsers do not support this today, and given this is
   // to support legacy code patterns, it's likely they'll
   // need support for such browsers.
+  // 当启用 legacyFBSupport 时，它适用于我们想要向容器添加一次性事件侦听器的情况。
+  // 这仅应在 enableLegacyFBSupport 时使用，因为需要提供与内部 FB www 事件工具的兼容性。
+  // 这通过在事件侦听器被调用后立即将其删除来实现。我们也可以尝试在 addEventListener 上使用 {once: true} 参数，但这需要支持，
+  // 并且某些浏览器目前不支持此功能，鉴于这是为了支持旧代码模式，很可能它们需要对这些浏览器提供支持。 
   if (enableLegacyFBSupport && isDeferredListenerForLegacyFBSupport) {
     const originalListener = listener;
     // $FlowFixMe[missing-this-annot]
@@ -502,6 +542,7 @@ function addTrappedEventListener(
     };
   }
   // TODO: There are too many combinations here. Consolidate them.
+  // TODO: 这里的组合太多了。对它们进行整合。 
   if (isCapturePhaseListener) {
     if (isPassiveListener !== undefined) {
       unsubscribeListener = addEventCaptureListenerWithPassiveFlag(
@@ -580,13 +621,16 @@ export function dispatchEventForPluginEventSystem(
     // If we are using the legacy FB support flag, we
     // defer the event to the null with a one
     // time event listener so we can defer the event.
+    // 如果我们正在使用传统的 FB 支持标志，我们
+    // 将事件推迟到空值，并使用一次性事件监听器，以便我们可以推迟该事件。 
     if (
       enableLegacyFBSupport &&
-      // If our event flags match the required flags for entering
-      // FB legacy mode and we are processing the "click" event,
+      // If our event flags match the required flags for entering FB legacy mode and we are processing the "click" event,
       // then we can defer the event to the "document", to allow
       // for legacy FB support, where the expected behavior was to
       // match React < 16 behavior of delegated clicks to the doc.
+      // 如果我们的事件标志与进入 FB 传统模式的所需标志相匹配，并且我们正在处理“点击”事件，
+      // 那么我们可以将事件推迟到“文档”，以允许支持传统的 FB，在那里预期的行为是匹配 React < 16 中委托点击到文档的行为。 
       domEventName === 'click' &&
       (eventSystemFlags & SHOULD_NOT_DEFER_CLICK_FOR_FB_SUPPORT_MODE) === 0 &&
       !isReplayingEvent(nativeEvent)
@@ -606,6 +650,11 @@ export function dispatchEventForPluginEventSystem(
       // root boundaries that match that of our current "rootContainer".
       // If we find that "rootContainer", we find the parent fiber
       // sub-tree for that root and make that our ancestor instance.
+      // 以下逻辑试图确定我们是否需要将目标 fiber 更改为不同的祖先。
+      // 我们在旧版事件系统中有类似的逻辑，只是系统之间的最大区别在于现代事件系统现在每个 React 根和 React 门户根都有一个事件侦听器。
+      // 一起，代表这些根的 DOM 节点就是“根容器”。
+      // 要确定我们应该使用哪个祖先实例，我们从目标实例沿着 fiber 树向上遍历，并尝试找到与我们当前“根容器”匹配的根边界。
+      // 如果我们找到那个“根容器”，我们找到该根的父 fiber 子树，并将其作为我们的祖先实例。 
       let node: null | Fiber = targetInst;
 
       mainLoop: while (true) {

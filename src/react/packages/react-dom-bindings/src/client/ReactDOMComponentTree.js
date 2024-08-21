@@ -85,6 +85,13 @@ export function isContainerMarkedAsRoot(node: Container): boolean {
 // pass the Container node as the targetNode, you will not actually get the
 // HostRoot back. To get to the HostRoot, you need to pass a child of it.
 // The same thing applies to Suspense boundaries.
+// 给定一个 DOM 节点，返回最接近的 HostComponent 或 HostText Fiber 祖先。
+// 如果目标节点是 hydrated 或尚未渲染子树的一部分，那么
+// 这也可能返回一个 SuspenseComponent 或 HostRoot 以表明。
+// 从概念上讲，HostRoot Fiber 是容器节点的子节点。因此，如果您
+// 将容器节点作为目标节点传递，实际上您不会得到
+// HostRoot 回来。要获取 HostRoot，您需要传递它的一个子节点。
+// 同样的事情适用于 Suspense 边界。 
 export function getClosestInstanceFromNode(targetNode: Node): null | Fiber {
   let targetInst = (targetNode: any)[internalInstanceKey];
   if (targetInst) {
@@ -93,6 +100,8 @@ export function getClosestInstanceFromNode(targetNode: Node): null | Fiber {
   }
   // If the direct event target isn't a React owned DOM node, we need to look
   // to see if one of its parents is a React owned DOM node.
+  // 如果直接事件目标不是 React 拥有的 DOM 节点，我们需要查看
+  // 其某个父节点是否为 React 拥有的 DOM 节点。 
   let parentNode = targetNode.parentNode;
   while (parentNode) {
     // We'll check if this is a container root that could include
@@ -103,6 +112,11 @@ export function getClosestInstanceFromNode(targetNode: Node): null | Fiber {
     // itself because the fibers are conceptually between the container
     // node and the first child. It isn't surrounding the container node.
     // If it's not a container, we check if it's an instance.
+    // 我们将检查这是否是一个容器根，未来可能包含 React 节点。
+    // 我们首先需要检查这一点，因为如果我们是 dehydrated 容器的子节点，
+    // 我们需要首先找到那个内部容器，然后再继续寻找父实例。
+    // 请注意，我们不在目标节点本身检查此字段，因为 fiber 在概念上位于容器节点和第一个子节点之间。
+    // 它并不围绕容器节点。如果它不是一个容器，我们检查它是否是一个实例。 
     targetInst =
       (parentNode: any)[internalContainerInstanceKey] ||
       (parentNode: any)[internalInstanceKey];
@@ -121,6 +135,16 @@ export function getClosestInstanceFromNode(targetNode: Node): null | Fiber {
       // However, since the HostRoot starts out with an alternate it might
       // have one on the alternate so we need to check in case this was a
       // root.
+      // 由于这并非事件的直接目标，我们可能已经
+      // 跨过 dehydrated 的 DOM 节点来到这里。然而，它们也可能是
+      // 非 React 节点。我们需要回答是哪一种。
+
+      // 如果实例没有任何子节点，那么其中不可能存在
+      // 嵌套的悬念边界。因此，我们可以将此作为快速退出条件。大多数时候，当人们向树中添加非 React 子节点时，
+      // 它是使用对无子 DOM 节点的引用。
+      // 通常我们只需要检查其中一个纤维，因为如果它曾经从有子节点变为删除它们，或者反之亦然，
+      // 它已经删除了嵌套在内部的脱水边界。
+      // 然而，由于 HostRoot 一开始就有一个备用节点，它可能在备用节点上有一个，所以我们需要检查以防这是一个根节点。 
       const alternate = targetInst.alternate;
       if (
         targetInst.child !== null ||
@@ -128,6 +152,7 @@ export function getClosestInstanceFromNode(targetNode: Node): null | Fiber {
       ) {
         // Next we need to figure out if the node that skipped past is
         // nested within a dehydrated boundary and if so, which one.
+        // 接下来，我们需要弄清楚跳过的节点是否嵌套在 dehydrated 边界内，如果是，是哪一个。 
         let suspenseInstance = getParentSuspenseInstance(targetNode);
         while (suspenseInstance !== null) {
           // We found a suspense instance. That means that we haven't

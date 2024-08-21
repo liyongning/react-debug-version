@@ -236,7 +236,9 @@ export function createRoot(
     }
   }
 
-  // 创建 FiberRoot（应用根节点），并设置 fiberRoot.current 设置为 rootRiber，作为屏幕上当前渲染的节点，但 rootFiber 目前还是一个空的 fiber 节点
+  // 1. 基于 container 创建 FiberRoot（React 应用根节点）
+  // 2. 创建 RootFiber（根 Fiber 节点），但到目前为止 RootFiber 还是一棵空树，不是 FiberTree
+  // 3. root.current = rootFiber，将创建的 根 Fiber 节点设置为 current workInProgress
   const root = createContainer(
     container,
     ConcurrentRoot,
@@ -260,7 +262,7 @@ export function createRoot(
   listenToAllSupportedEvents(rootContainerElement);
 
   // $FlowFixMe[invalid-constructor] Flow no longer supports calling new on functions
-  // 实例化 reactDomRoot 对象，并设置 this._internalRoot = rootFiber，对象上还有 render 和 unmount 方法
+  // 实例化 reactDomRoot 对象，并设置 this._internalRoot = FiberRoot，对象上还有 render 和 unmount 方法
   return new ReactDOMRoot(root);
 }
 

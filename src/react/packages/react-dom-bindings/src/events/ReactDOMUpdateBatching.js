@@ -47,6 +47,7 @@ export function batchedUpdates(fn, a, b) {
   if (isInsideEventHandler) {
     // If we are currently inside another batch, we need to wait until it
     // fully completes before restoring state.
+    // 如果我们当前处于另一个批次内，则直接执行函数。只有等这些函数都执行完，isInsideEventHandler 才会恢复状态（false）。 
     return fn(a, b);
   }
   isInsideEventHandler = true;

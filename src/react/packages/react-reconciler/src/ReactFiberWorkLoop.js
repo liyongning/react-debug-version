@@ -1542,6 +1542,7 @@ export function batchedUpdates<A, R>(fn: A => R, a: A): R {
   if (disableLegacyMode) {
     // batchedUpdates is a no-op now, but there's still some internal react-dom
     // code calling it, that we can't remove until we remove legacy mode.
+    // batchedUpdates 现在不起作用，但仍有一些内部的 react-dom 代码在调用它，在我们移除遗留模式之前无法删除。 
     return fn(a);
   } else {
     const prevExecutionContext = executionContext;
@@ -1552,6 +1553,7 @@ export function batchedUpdates<A, R>(fn: A => R, a: A): R {
       executionContext = prevExecutionContext;
       // If there were legacy sync updates, flush them at the end of the outer
       // most batchedUpdates-like method.
+      // 如果存在遗留的同步更新，则在最外层的类似于 batchedUpdates 的方法结束时刷新它们。 
       if (
         executionContext === NoContext &&
         // Treat `act` as if it's inside `batchedUpdates`, even in legacy mode.
